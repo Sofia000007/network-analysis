@@ -4,13 +4,13 @@
 import pandas as pd
 import os
 
-def construct_technology_network():
-    """构建技术网络"""
+def construct_collaborative_network():
+    """构建合作研发网络"""
     # 定义文件路径
     input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.xlsx')
     output_dir = os.path.join('..', 'data', 'step2_output')
-    nodes_path = os.path.join(output_dir, 'technology_network_nodes.xlsx')
-    edges_path = os.path.join(output_dir, 'technology_network_edges.xlsx')
+    nodes_path = os.path.join(output_dir, 'collaborative_R&D_network_nodes.xlsx')
+    edges_path = os.path.join(output_dir, 'collaborative_R&D_network_edges.xlsx')
 
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
@@ -24,20 +24,16 @@ def construct_technology_network():
         nodes = set()
         edges = set()
 
-        # 处理IPC分类数据
+        # 处理专利权人数据
         for _, row in df.iterrows():
-            ipc_codes = []
-            for code in str(row['IPC分类']).split("|"):
-                code = code.strip()[:4]  # 取前四位并去除空格
-                if code and len(code) >= 4:  # 有效IPC分类校验
-                    ipc_codes.append(code)
-                    nodes.add(code)
+            patentees = [p.strip() for p in str(row['专利权人']).split("|") if p.strip()]
+            nodes.update(patentees)
 
-            # 生成无向边
-            if len(ipc_codes) >= 2:
-                for i in range(len(ipc_codes)):
-                    for j in range(i+1, len(ipc_codes)):
-                        edge = tuple(sorted([ipc_codes[i], ipc_codes[j]]))
+            # 生成合作边
+            if len(patentees) >= 2:
+                for i in range(len(patentees)):
+                    for j in range(i+1, len(patentees)):
+                        edge = tuple(sorted([patentees[i], patentees[j]]))
                         edges.add(edge)
 
         # 生成数据框
@@ -50,8 +46,8 @@ def construct_technology_network():
 
         # 生成统计报告
         report = (
-            f"技术网络构建完成\n原始专利数：{original_count}条\n"
-            f"生成IPC节点数：{len(nodes)}个\n生成技术关联边数：{len(edges)}条\n"
+            f"合作研发网络构建完成\n原始专利数：{original_count}条\n"
+            f"生成合作机构数：{len(nodes)}个\n生成合作关系边数：{len(edges)}条\n"
             f"节点文件：{nodes_path}\n边文件：{edges_path}"
         )
         print(report)
@@ -63,4 +59,4 @@ def construct_technology_network():
         return error_msg
 
 if __name__ == '__main__':
-    construct_technology_network()
+    construct_collaborative_network()
