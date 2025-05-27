@@ -19,19 +19,19 @@ def calculate_centrality_coupling():
     # 网络配置
     networks = {
         'knowledge_network': {
-            'nodes': 'knowledge_network_nodes.xlsx',
-            'edges': 'knowledge_network_edges.xlsx',
-            'output': 'knowledge_network_centrality_coupling.xlsx'
+            'nodes': 'knowledge_network_nodes.csv',
+            'edges': 'knowledge_network_edges.csv',
+            'output': 'knowledge_network_centrality_coupling.csv'
         },
         'technology_network': {
-            'nodes': 'technology_network_nodes.xlsx',
-            'edges': 'technology_network_edges.xlsx',
-            'output': 'technology_network_centrality_coupling.xlsx'
+            'nodes': 'technology_network_nodes.csv',
+            'edges': 'technology_network_edges.csv',
+            'output': 'technology_network_centrality_coupling.csv'
         },
         'collaborative_R&D_network': {
-            'nodes': 'collaborative_R&D_network_nodes.xlsx',
-            'edges': 'collaborative_R&D_network_edges.xlsx',
-            'output': 'collaborative_R&D_network_centrality_coupling.xlsx'
+            'nodes': 'collaborative_R&D_network_nodes.csv',
+            'edges': 'collaborative_R&D_network_edges.csv',
+            'output': 'collaborative_R&D_network_centrality_coupling.csv'
         }
     }
 
@@ -54,8 +54,8 @@ def calculate_centrality_coupling():
                 raise FileNotFoundError(f"边文件不存在: {edges_path}")
 
             # 加载数据
-            nodes_df = pd.read_excel(nodes_path)
-            edges_df = pd.read_excel(edges_path)
+            nodes_df = pd.read_csv(nodes_path)
+            edges_df = pd.read_csv(edges_path)
 
             # 检查必要列是否存在
             required_node_cols = ['节点']
@@ -82,7 +82,7 @@ def calculate_centrality_coupling():
                 centrality_df.at[idx, 'centrality_coupling'] = count
 
             # 保存结果
-            centrality_df.to_excel(output_path, index=False)
+            centrality_df.to_csv(output_path, index=False)
 
             # 记录结果信息
             results[net_name] = {

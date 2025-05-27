@@ -8,7 +8,7 @@ import os
 def calculate_centrality_index():
     """
     计算中心度指数
-    读取step5_output中的centrality_coupling_database.xlsx和step2_output中的节点和边数据
+    读取step5_output中的centrality_coupling_database.csv和step2_output中的节点和边数据
     输出各网络的中心度指数文件到step5_output文件夹
     """
     # 定义基础路径
@@ -19,28 +19,28 @@ def calculate_centrality_index():
     # 网络配置
     networks = {
         'knowledge_network': {
-            'nodes_file': 'knowledge_network_nodes.xlsx',
+            'nodes_file': 'knowledge_network_nodes.csv',
             'edge_files': [
-                'knowledge-technology_network_edges.xlsx',
-                'knowledge-collaborative_R&D_network_edges.xlsx'
+                'knowledge-technology_network_edges.csv',
+                'knowledge-collaborative_R&D_network_edges.csv'
             ],
-            'output_file': 'knowledge_network_centrality_index.xlsx'
+            'output_file': 'knowledge_network_centrality_index.csv'
         },
         'technology_network': {
-            'nodes_file': 'technology_network_nodes.xlsx',
+            'nodes_file': 'technology_network_nodes.csv',
             'edge_files': [
-                'knowledge-technology_network_edges.xlsx',
-                'technology-collaborative_R&D_network_edges.xlsx'
+                'knowledge-technology_network_edges.csv',
+                'technology-collaborative_R&D_network_edges.csv'
             ],
-            'output_file': 'technology_network_centrality_index.xlsx'
+            'output_file': 'technology_network_centrality_index.csv'
         },
         'collaborative_R&D_network': {
-            'nodes_file': 'collaborative_R&D_network_nodes.xlsx',
+            'nodes_file': 'collaborative_R&D_network_nodes.csv',
             'edge_files': [
-                'knowledge-collaborative_R&D_network_edges.xlsx',
-                'technology-collaborative_R&D_network_edges.xlsx'
+                'knowledge-collaborative_R&D_network_edges.csv',
+                'technology-collaborative_R&D_network_edges.csv'
             ],
-            'output_file': 'collaborative_R&D_network_centrality_index.xlsx'
+            'output_file': 'collaborative_R&D_network_centrality_index.csv'
         }
     }
 
@@ -49,8 +49,8 @@ def calculate_centrality_index():
         os.makedirs(step5_dir, exist_ok=True)
 
         # 加载中心度数据库
-        centrality_db_path = os.path.join(step5_dir, 'centrality_coupling_database.xlsx')
-        centrality_db = pd.read_excel(centrality_db_path)
+        centrality_db_path = os.path.join(step5_dir, 'centrality_coupling_database.csv')
+        centrality_db = pd.read_csv(centrality_db_path)
 
         # 检查必要列是否存在
         required_db_cols = ['节点', 'centrality_coupling*weights']
@@ -64,7 +64,7 @@ def calculate_centrality_index():
 
             # 加载节点数据
             nodes_path = os.path.join(step2_dir, net_config['nodes_file'])
-            nodes_df = pd.read_excel(nodes_path)
+            nodes_df = pd.read_csv(nodes_path)
 
             # 检查节点列是否存在
             if '节点' not in nodes_df.columns:
@@ -74,7 +74,7 @@ def calculate_centrality_index():
             edge_dfs = []
             for edge_file in net_config['edge_files']:
                 edge_path = os.path.join(step2_dir, edge_file)
-                edge_df = pd.read_excel(edge_path)
+                edge_df = pd.read_csv(edge_path)
 
                 # 检查边列是否存在
                 if not all(col in edge_df.columns for col in ['节点1', '节点2']):
@@ -124,7 +124,7 @@ def calculate_centrality_index():
 
             # 保存结果
             output_path = os.path.join(step5_dir, net_config['output_file'])
-            result_df.to_excel(output_path, index=False)
+            result_df.to_csv(output_path, index=False)
 
             # 打印统计信息
             print(f"已保存{net_name}中心度指数到: {output_path}")

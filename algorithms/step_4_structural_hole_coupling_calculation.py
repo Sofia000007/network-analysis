@@ -12,17 +12,17 @@ def load_network_data(network_type: str, input_dir: Path) -> tuple:
     """加载网络节点和边数据"""
     try:
         # 构建文件路径
-        nodes_path = input_dir / f"{network_type}_network_nodes.xlsx"
-        edges_path = input_dir / f"{network_type}_network_edges.xlsx"
+        nodes_path = input_dir / f"{network_type}_network_nodes.csv"
+        edges_path = input_dir / f"{network_type}_network_edges.csv"
 
         # 读取节点数据（单列）
-        nodes_df = pd.read_excel(nodes_path)
+        nodes_df = pd.read_csv(nodes_path)
         if "节点" not in nodes_df.columns:
             raise ValueError("节点文件必须包含'节点'列")
         nodes = nodes_df["节点"].astype(str).unique()
 
         # 读取边数据（两列）
-        edges_df = pd.read_excel(edges_path)
+        edges_df = pd.read_csv(edges_path)
         if not {"节点1", "节点2"}.issubset(edges_df.columns):
             raise ValueError("边文件必须包含'节点1'和'节点2'列")
         edges_df = edges_df[["节点1", "节点2"]].rename(
@@ -114,8 +114,8 @@ def calculate_structural_hole(network_type: str, input_dir: Path, output_dir: Pa
         os.makedirs(output_dir, exist_ok=True)
 
         # 保存结果
-        output_path = output_dir / f"{network_type}_network_structural_hole_coupling.xlsx"
-        result_df.to_excel(output_path, index=False)
+        output_path = output_dir / f"{network_type}_network_structural_hole_coupling.csv"
+        result_df.to_csv(output_path, index=False)
 
         return f"[{network_type}]计算完成，结果保存至：{output_path}"
 

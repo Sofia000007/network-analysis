@@ -16,9 +16,9 @@ def calculate_critical_centrality_index():
     output_dir = os.path.join(base_dir, 'step7_output')
 
     # 输入输出文件路径
-    db_file = os.path.join(input_dir, 'criticality_and_centrality_database.xlsx')
+    db_file = os.path.join(input_dir, 'criticality_and_centrality_database.csv')
     weights_file = os.path.join(input_dir, 'index_weights.txt')
-    output_file = os.path.join(output_dir, 'criticality-centrality_index.xlsx')
+    output_file = os.path.join(output_dir, 'criticality-centrality_index.csv')
 
     try:
         # 确保输出目录存在
@@ -28,7 +28,7 @@ def calculate_critical_centrality_index():
         if not os.path.exists(db_file):
             raise FileNotFoundError(f"数据库文件不存在: {db_file}")
 
-        df = pd.read_excel(db_file)
+        df = pd.read_csv(db_file)
 
         # 检查必要列是否存在
         required_cols = ['节点', '网络层', '关键性', '核心性']
@@ -61,7 +61,7 @@ def calculate_critical_centrality_index():
         output_df = df[output_cols]
 
         # 5. 保存结果
-        output_df.to_excel(output_file, index=False)
+        output_df.to_csv(output_file, index=False)
 
         # 6. 统计信息
         stats = {

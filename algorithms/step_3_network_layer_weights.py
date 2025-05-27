@@ -28,8 +28,8 @@ def calculate_network_weights():
         # 加载单层网络
         def load_network(network_type):
             G = nx.Graph()
-            nodes = pd.read_excel(os.path.join(input_dir, f"{network_type}_network_nodes.xlsx"))
-            edges = pd.read_excel(os.path.join(input_dir, f"{network_type}_network_edges.xlsx"))
+            nodes = pd.read_csv(os.path.join(input_dir, f"{network_type}_network_nodes.csv"))
+            edges = pd.read_csv(os.path.join(input_dir, f"{network_type}_network_edges.csv"))
             G.add_nodes_from(nodes['节点'].astype(str))
             G.add_edges_from(edges[['节点1', '节点2']].astype(str).values.tolist())
             return G
@@ -37,7 +37,7 @@ def calculate_network_weights():
         # 加载层间耦合网络
         def load_coupling(coupling_type):
             G = nx.Graph()
-            edges = pd.read_excel(os.path.join(input_dir, f"{coupling_type}_network_edges.xlsx"))
+            edges = pd.read_csv(os.path.join(input_dir, f"{coupling_type}_network_edges.csv"))
             G.add_edges_from(edges[['节点1', '节点2']].astype(str).values.tolist())
             return G
 

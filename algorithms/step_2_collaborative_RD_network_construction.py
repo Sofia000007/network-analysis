@@ -7,17 +7,17 @@ import os
 def construct_collaborative_network():
     """构建合作研发网络"""
     # 定义文件路径
-    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.xlsx')
+    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.csv')
     output_dir = os.path.join('..', 'data', 'step2_output')
-    nodes_path = os.path.join(output_dir, 'collaborative_R&D_network_nodes.xlsx')
-    edges_path = os.path.join(output_dir, 'collaborative_R&D_network_edges.xlsx')
+    nodes_path = os.path.join(output_dir, 'collaborative_R&D_network_nodes.csv')
+    edges_path = os.path.join(output_dir, 'collaborative_R&D_network_edges.csv')
 
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
 
     try:
         # 读取数据
-        df = pd.read_excel(input_path)
+        df = pd.read_csv(input_path)
         original_count = len(df)
 
         # 初始化数据容器
@@ -41,8 +41,8 @@ def construct_collaborative_network():
         edges_df = pd.DataFrame(sorted(edges), columns=["节点1", "节点2"])
 
         # 保存结果
-        nodes_df.to_excel(nodes_path, index=False)
-        edges_df.to_excel(edges_path, index=False)
+        nodes_df.to_csv(nodes_path, index=False)
+        edges_df.to_csv(edges_path, index=False)
 
         # 生成统计报告
         report = (

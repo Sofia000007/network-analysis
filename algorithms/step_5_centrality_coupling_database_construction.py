@@ -30,18 +30,18 @@ def build_centrality_coupling_database():
         networks = {
             'knowledge_network': {
                 'layer_id': 1,
-                'input_file': 'knowledge_network_centrality_coupling.xlsx',
-                'output_file': 'knowledge_network_centrality_coupling.xlsx'
+                'input_file': 'knowledge_network_centrality_coupling.csv',
+                'output_file': 'knowledge_network_centrality_coupling.csv'
             },
             'technology_network': {
                 'layer_id': 2,
-                'input_file': 'technology_network_centrality_coupling.xlsx',
-                'output_file': 'technology_network_centrality_coupling.xlsx'
+                'input_file': 'technology_network_centrality_coupling.csv',
+                'output_file': 'technology_network_centrality_coupling.csv'
             },
             'collaborative_R&D_network': {
                 'layer_id': 3,
-                'input_file': 'collaborative_R&D_network_centrality_coupling.xlsx',
-                'output_file': 'collaborative_R&D_network_centrality_coupling.xlsx'
+                'input_file': 'collaborative_R&D_network_centrality_coupling.csv',
+                'output_file': 'collaborative_R&D_network_centrality_coupling.csv'
             }
         }
 
@@ -55,7 +55,7 @@ def build_centrality_coupling_database():
                 raise FileNotFoundError(f"{net_name}中心度文件不存在: {input_path}")
 
             # 读取数据
-            df = pd.read_excel(input_path)
+            df = pd.read_csv(input_path)
 
             # 检查必要列是否存在
             required_cols = ['节点', 'centrality_coupling']
@@ -91,12 +91,12 @@ def build_centrality_coupling_database():
 
             # 保存结果
             output_path = os.path.join(step5_dir, net_config['output_file'])
-            net_df[output_cols].to_excel(output_path, index=False)
+            net_df[output_cols].to_csv(output_path, index=False)
 
         # 5. 保存整合后的数据库
         combined_df = pd.concat(dfs, ignore_index=True)
-        database_path = os.path.join(step5_dir, 'centrality_coupling_database.xlsx')
-        combined_df.to_excel(database_path, index=False)
+        database_path = os.path.join(step5_dir, 'centrality_coupling_database.csv')
+        combined_df.to_csv(database_path, index=False)
 
         result_msg = (
             f"中心度耦合数据库构建完成！\n"

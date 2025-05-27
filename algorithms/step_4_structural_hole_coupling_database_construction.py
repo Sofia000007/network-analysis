@@ -16,11 +16,11 @@ def build_structural_hole_database():
     # 输入输出路径配置
     input_files = {
         'weights': os.path.join(step3_dir, 'network_layer_weights.txt'),
-        'knowledge': os.path.join(step4_dir, 'knowledge_network_structural_hole_coupling.xlsx'),
-        'technology': os.path.join(step4_dir, 'technology_network_structural_hole_coupling.xlsx'),
-        'collaborative': os.path.join(step4_dir, 'collaborative_R&D_network_structural_hole_coupling.xlsx')
+        'knowledge': os.path.join(step4_dir, 'knowledge_network_structural_hole_coupling.csv'),
+        'technology': os.path.join(step4_dir, 'technology_network_structural_hole_coupling.csv'),
+        'collaborative': os.path.join(step4_dir, 'collaborative_R&D_network_structural_hole_coupling.csv')
     }
-    output_path = os.path.join(step4_dir, 'structural_hole_coupling_database.xlsx')
+    output_path = os.path.join(step4_dir, 'structural_hole_coupling_database.csv')
 
     try:
         # 确保输出目录存在
@@ -45,7 +45,7 @@ def build_structural_hole_database():
                 raise FileNotFoundError(f"结构洞文件不存在：{file_path}")
 
             # 读取并标准化列名
-            df = pd.read_excel(file_path).rename(columns={
+            df = pd.read_csv(file_path).rename(columns={
                 'node': '节点',
                 'structural_hole_coupling': 'structural_hole_coupling',
                 'structural_hole': 'structural_hole_coupling'  # 兼容旧版列名
@@ -78,7 +78,7 @@ def build_structural_hole_database():
         ]
 
         # 保存结果
-        combined_df[output_columns].to_excel(output_path, index=False)
+        combined_df[output_columns].to_csv(output_path, index=False)
         result = f"数据库构建成功！总记录数：{len(combined_df)}，保存路径：{output_path}"
         print(result)
         return result

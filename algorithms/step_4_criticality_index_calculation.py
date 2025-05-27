@@ -9,35 +9,35 @@ from tqdm import tqdm
 def calculate_criticality():
     """计算多网络关键性指数"""
     # 定义文件路径
-    input_db_path = os.path.join('..', 'data', 'step4_output', 'structural_hole_coupling_database.xlsx')
+    input_db_path = os.path.join('..', 'data', 'step4_output', 'structural_hole_coupling_database.csv')
     input_network_dir = os.path.join('..', 'data', 'step2_output')
     output_dir = os.path.join('..', 'data', 'step4_output')
 
     # 网络配置信息
     network_config = {
         'knowledge_network': {
-            'nodes_file': 'knowledge_network_nodes.xlsx',
+            'nodes_file': 'knowledge_network_nodes.csv',
             'edge_files': [
-                'knowledge-technology_network_edges.xlsx',
-                'knowledge-collaborative_R&D_network_edges.xlsx'
+                'knowledge-technology_network_edges.csv',
+                'knowledge-collaborative_R&D_network_edges.csv'
             ],
-            'output_file': 'knowledge_network_criticality_index.xlsx'
+            'output_file': 'knowledge_network_criticality_index.csv'
         },
         'technology_network': {
-            'nodes_file': 'technology_network_nodes.xlsx',
+            'nodes_file': 'technology_network_nodes.csv',
             'edge_files': [
-                'knowledge-technology_network_edges.xlsx',
-                'technology-collaborative_R&D_network_edges.xlsx'
+                'knowledge-technology_network_edges.csv',
+                'technology-collaborative_R&D_network_edges.csv'
             ],
-            'output_file': 'technology_network_criticality_index.xlsx'
+            'output_file': 'technology_network_criticality_index.csv'
         },
         'collaborative_R&D_network': {
-            'nodes_file': 'collaborative_R&D_network_nodes.xlsx',
+            'nodes_file': 'collaborative_R&D_network_nodes.csv',
             'edge_files': [
-                'knowledge-collaborative_R&D_network_edges.xlsx',
-                'technology-collaborative_R&D_network_edges.xlsx'
+                'knowledge-collaborative_R&D_network_edges.csv',
+                'technology-collaborative_R&D_network_edges.csv'
             ],
-            'output_file': 'collaborative_R&D_network_criticality_index.xlsx'
+            'output_file': 'collaborative_R&D_network_criticality_index.csv'
         }
     }
 
@@ -46,19 +46,19 @@ def calculate_criticality():
 
     try:
         # 加载结构洞数据库
-        structural_db = pd.read_excel(input_db_path)
+        structural_db = pd.read_csv(input_db_path)
 
         # 处理每个网络类型
         for network_type, config in network_config.items():
             # 加载网络节点数据
             nodes_path = os.path.join(input_network_dir, config['nodes_file'])
-            nodes_df = pd.read_excel(nodes_path)
+            nodes_df = pd.read_csv(nodes_path)
 
             # 加载相关连边数据
             edge_dfs = []
             for edge_file in config['edge_files']:
                 edge_path = os.path.join(input_network_dir, edge_file)
-                edge_dfs.append(pd.read_excel(edge_path))
+                edge_dfs.append(pd.read_csv(edge_path))
 
             # 计算关键性指数
             criticality_indices = []
@@ -94,7 +94,7 @@ def calculate_criticality():
 
             # 保存结果
             output_path = os.path.join(output_dir, config['output_file'])
-            result_df.to_excel(output_path, index=False)
+            result_df.to_csv(output_path, index=False)
 
         # 生成报告
         report = (

@@ -7,17 +7,17 @@ import os
 def construct_knowledge_technology_network():
     """构建知识-技术双层网络"""
     # 定义文件路径
-    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.xlsx')
+    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.csv')
     output_dir = os.path.join('..', 'data', 'step2_output')
-    nodes_path = os.path.join(output_dir, 'knowledge-technology_network_nodes.xlsx')
-    edges_path = os.path.join(output_dir, 'knowledge-technology_network_edges.xlsx')
+    nodes_path = os.path.join(output_dir, 'knowledge-technology_network_nodes.csv')
+    edges_path = os.path.join(output_dir, 'knowledge-technology_network_edges.csv')
 
     # 确保输出目录存在
     os.makedirs(output_dir, exist_ok=True)
 
     try:
         # 读取数据（不包含表头）
-        df = pd.read_excel(input_path, header=None).iloc[1:]  # 跳过首行表头
+        df = pd.read_csv(input_path, header=None).iloc[1:]  # 跳过首行表头
 
         # 数据容器
         nodes = set()
@@ -57,8 +57,8 @@ def construct_knowledge_technology_network():
         )
 
         # 保存结果
-        nodes_df.to_excel(nodes_path, index=False)
-        edges_df.to_excel(edges_path, index=False)
+        nodes_df.to_csv(nodes_path, index=False)
+        edges_df.to_csv(edges_path, index=False)
 
         # 统计报告
         report = (

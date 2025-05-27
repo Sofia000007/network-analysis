@@ -21,18 +21,18 @@ def build_criticality_centrality_database():
     networks = {
         'knowledge_network': {
             'layer': 1,
-            'criticality_file': 'knowledge_network_criticality_index.xlsx',
-            'centrality_file': 'knowledge_network_centrality_index.xlsx'
+            'criticality_file': 'knowledge_network_criticality_index.csv',
+            'centrality_file': 'knowledge_network_centrality_index.csv'
         },
         'technology_network': {
             'layer': 2,
-            'criticality_file': 'technology_network_criticality_index.xlsx',
-            'centrality_file': 'technology_network_centrality_index.xlsx'
+            'criticality_file': 'technology_network_criticality_index.csv',
+            'centrality_file': 'technology_network_centrality_index.csv'
         },
         'collaborative_R&D_network': {
             'layer': 3,
-            'criticality_file': 'collaborative_R&D_network_criticality_index.xlsx',
-            'centrality_file': 'collaborative_R&D_network_centrality_index.xlsx'
+            'criticality_file': 'collaborative_R&D_network_criticality_index.csv',
+            'centrality_file': 'collaborative_R&D_network_centrality_index.csv'
         }
     }
 
@@ -48,7 +48,7 @@ def build_criticality_centrality_database():
 
             # 从step4加载关键性数据
             crit_path = os.path.join(step4_dir, net_config['criticality_file'])
-            crit_df = pd.read_excel(crit_path)
+            crit_df = pd.read_csv(crit_path)
 
             # 检查必要列
             if '节点' not in crit_df.columns or 'criticality_index' not in crit_df.columns:
@@ -56,7 +56,7 @@ def build_criticality_centrality_database():
 
             # 从step5加载核心性数据
             cent_path = os.path.join(step5_dir, net_config['centrality_file'])
-            cent_df = pd.read_excel(cent_path)
+            cent_df = pd.read_csv(cent_path)
 
             # 检查必要列
             if '节点' not in cent_df.columns or 'centrality_index' not in cent_df.columns:
@@ -93,8 +93,8 @@ def build_criticality_centrality_database():
         final_df = final_df[output_cols]
 
         # 保存结果
-        output_path = os.path.join(output_dir, 'criticality_and_centrality_database.xlsx')
-        final_df.to_excel(output_path, index=False)
+        output_path = os.path.join(output_dir, 'criticality_and_centrality_database.csv')
+        final_df.to_csv(output_path, index=False)
 
         # 统计信息
         stats = {

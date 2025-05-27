@@ -17,7 +17,7 @@ def calculate_index_weights():
     output_dir = os.path.join(base_dir, 'step6_output')
 
     # 输入输出文件路径
-    input_file = os.path.join(input_dir, 'criticality_and_centrality_database.xlsx')
+    input_file = os.path.join(input_dir, 'criticality_and_centrality_database.csv')
     output_file = os.path.join(output_dir, 'index_weights.txt')
 
     try:
@@ -28,7 +28,7 @@ def calculate_index_weights():
         if not os.path.exists(input_file):
             raise FileNotFoundError(f"输入文件不存在: {input_file}")
 
-        df = pd.read_excel(input_file)
+        df = pd.read_csv(input_file)
 
         # 检查必要列是否存在
         required_cols = ['关键性', '核心性']
