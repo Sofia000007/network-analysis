@@ -5,14 +5,22 @@ import pandas as pd
 import os
 
 
-def clean_patent_data():
-    """清洗专利数据"""
-    # 定义文件路径
-    input_path = os.path.join('..', 'data', 'input', 'original_patent_data.xlsx')
-    output_dir = os.path.join('..', 'data', 'step1_output')
-    output_path = os.path.join(output_dir, 'patent_data_cleaned.xlsx')
+def clean_patent_data(input_path=None, output_path=None):
+    """清洗专利数据
+    Args:
+        input_path (str): 输入文件路径，默认'../data/input/original_patent_data.xlsx'
+        output_path (str): 输出文件路径，默认'../data/step1_output/patent_data_cleaned.xlsx'
+    Returns:
+        str: 处理结果描述
+    """
+    # 设置默认路径
+    if input_path is None:
+        input_path = os.path.join('..', 'data', 'input', 'original_patent_data.xlsx')
+    if output_path is None:
+        output_path = os.path.join('..', 'data', 'step1_output', 'patent_data_cleaned.xlsx')
 
-    # 确保输出目录存在
+    # 创建输出目录
+    output_dir = os.path.dirname(output_path)
     os.makedirs(output_dir, exist_ok=True)
 
     try:
@@ -38,11 +46,14 @@ def clean_patent_data():
 
         # 保存清洗后的数据
         df.to_csv(output_path, index=False)
-        
-        result = f"数据清洗完成，清洗结果已保存至：{output_path}\n原始数据：{original_count}条\n删除IPC分类空值后：{after_dropna_count}条\n删除重复值后：{final_count}条"
+
+        result = f"""数据清洗完成，清洗结果已保存至：{output_path}
+原始数据：{original_count}条
+删除IPC分类空值后：{after_dropna_count}条
+删除重复值后：{final_count}条"""
         print(result)
         return result
-        
+
     except Exception as e:
         error_msg = f"数据清洗失败：{str(e)}"
         print(error_msg)
@@ -50,4 +61,8 @@ def clean_patent_data():
 
 
 if __name__ == '__main__':
-    clean_patent_data()
+    # 使用示例（可自定义路径）
+    clean_patent_data(
+        input_path='../data/input/original_patent_data.xlsx',
+        output_path='../data/step1_output/patent_data_cleaned.xlsx'
+    )

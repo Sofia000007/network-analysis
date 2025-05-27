@@ -7,18 +7,33 @@ import re
 import os
 import requests
 from bs4 import BeautifulSoup
-from googletrans import Translator
+from deep_translator import GoogleTranslator as Translator
+from pathlib import Path
 
 
-def remove_personal_applications():
-    """剔除个人专利申请数据"""
-    # 定义文件路径
-    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_cleaned.xlsx')
-    output_dir = os.path.join('..', 'data', 'step1_output')
-    output_path = os.path.join(output_dir, 'patent_data_selected_columns.xlsx')
+def remove_personal_applications(input_path=None, output_path=None):
+    """
+    剔除个人专利申请数据
+
+    参数:
+        input_path (str/Path): 输入文件路径，默认'./data/step1_output/patent_data_cleaned.xlsx'
+        output_path (str/Path): 输出文件路径，默认'./data/step1_output/patent_data_selected_columns.xlsx'
+
+    返回:
+        str: 处理结果报告
+    """
+    # 设置默认路径
+    if input_path is None:
+        input_path = Path('./data/step1_output/patent_data_cleaned.xlsx')
+    if output_path is None:
+        output_path = Path('./data/step1_output/patent_data_selected_columns.xlsx')
+
+    # 转换为Path对象
+    input_path = Path(input_path)
+    output_path = Path(output_path)
 
     # 确保输出目录存在
-    os.makedirs(output_dir, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         # 读取数据
@@ -53,11 +68,10 @@ def remove_personal_applications():
 
         # 数据处理容器
         remaining_data = []
-        translator = Translator()
 
         # 进度条处理
         print("开始处理专利权人数据...")
-        for index, row in tqdm(data.iterrows(), total=data.shape[0], desc="处理进度"):
+        for _, row in tqdm(data.iterrows(), total=data.shape[0], desc="处理进度"):
             name = row['专利权人']
             if pd.isna(name):
                 continue
@@ -69,7 +83,7 @@ def remove_personal_applications():
                 remaining_data.append(row)
             else:
                 try:
-                    translated = translator.translate(name, dest='zh-cn').text
+                    translated = Translator().translate(name, target='zh').text
                     if any(kw in translated for kw in non_personal_keywords) or check_company_name_online(translated):
                         remaining_data.append(row)
                 except:
@@ -84,7 +98,14 @@ def remove_personal_applications():
         result_df.to_excel(output_path, index=False)
 
         # 生成统计报告
-        report = f"数据处理完成，有效数据已保存至：{output_path}\n原始数据量：{original_count}条\n保留数据量：{final_count}条"
+        report = (
+            f"数据处理完成:\n"
+            f"输入文件: {input_path}\n"
+            f"输出文件: {output_path}\n"
+            f"原始数据量: {original_count}条\n"
+            f"保留数据量: {final_count}条\n"
+            f"过滤率: {1 - final_count / original_count:.2%}"
+        )
         print(report)
         return report
 
@@ -95,4 +116,8 @@ def remove_personal_applications():
 
 
 if __name__ == '__main__':
-    remove_personal_applications()
+    # 示例调用方式
+    remove_personal_applications(
+        input_path='../data/step1_output/patent_data_cleaned.xlsx',
+        output_path='../data/step1_output/patent_data_selected_columns.xlsx'
+    )
