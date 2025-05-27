@@ -3,28 +3,40 @@
 
 import pandas as pd
 import numpy as np
-import os
+from pathlib import Path
 
 
-def build_structural_hole_database():
-    """构建结构洞耦合数据库"""
-    # 定义基础路径
-    base_dir = os.path.join('..', 'data')
-    step3_dir = os.path.join(base_dir, 'step3_output')
-    step4_dir = os.path.join(base_dir, 'step4_output')
+def build_structural_hole_database(step3_dir=None, step4_dir=None):
+    """构建结构洞耦合数据库
+    
+    Args:
+        step3_dir (str/Path): step3输出目录路径，默认'../data/step3_output'
+        step4_dir (str/Path): step4输出目录路径，默认'../data/step4_output'
+    
+    Returns:
+        str: 处理结果报告
+    """
+    # 设置默认路径
+    step3_dir = Path(step3_dir) if step3_dir else Path('../data/step3_output')
+    step4_dir = Path(step4_dir) if step4_dir else Path('../data/step4_output')
 
     # 输入输出路径配置
     input_files = {
-        'weights': os.path.join(step3_dir, 'network_layer_weights.txt'),
-        'knowledge': os.path.join(step4_dir, 'knowledge_network_structural_hole_coupling.csv'),
-        'technology': os.path.join(step4_dir, 'technology_network_structural_hole_coupling.csv'),
-        'collaborative': os.path.join(step4_dir, 'collaborative_R&D_network_structural_hole_coupling.csv')
+        'weights': step3_dir / 'network_layer_weights.txt',
+        'knowledge': step4_dir / 'knowledge_network_structural_hole_coupling.csv',
+        'technology': step4_dir / 'technology_network_structural_hole_coupling.csv',
+        'collaborative': step4_dir / 'collaborative_R&D_network_structural_hole_coupling.csv'
     }
-    output_path = os.path.join(step4_dir, 'structural_hole_coupling_database.csv')
+    output_path = step4_dir / 'structural_hole_coupling_database.csv'
 
     try:
         # 确保输出目录存在
-        os.makedirs(step4_dir, exist_ok=True)
+        step4_dir.mkdir(parents=True, exist_ok=True)
+
+        # 检查输入文件是否存在
+        for name, path in input_files.items():
+            if not path.exists():
+                raise FileNotFoundError(f"输入文件不存在：{path}")
 
         # 加载网络层权重
         layer_weights = np.loadtxt(input_files['weights'])
@@ -41,11 +53,9 @@ def build_structural_hole_database():
         dfs = []
         for net_key, layer_id, net_name in networks:
             file_path = input_files[net_key]
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"结构洞文件不存在：{file_path}")
 
             # 读取并标准化列名
-            df = pd.read_csv(file_path).rename(columns={
+            df = pd.read_csv(file_path, encoding='utf-8').rename(columns={
                 'node': '节点',
                 'structural_hole_coupling': 'structural_hole_coupling',
                 'structural_hole': 'structural_hole_coupling'  # 兼容旧版列名
@@ -78,7 +88,7 @@ def build_structural_hole_database():
         ]
 
         # 保存结果
-        combined_df[output_columns].to_csv(output_path, index=False)
+        combined_df[output_columns].to_csv(output_path, index=False, encoding='utf-8-sig')
         result = f"数据库构建成功！总记录数：{len(combined_df)}，保存路径：{output_path}"
         print(result)
         return result
@@ -98,4 +108,11 @@ def build_structural_hole_database():
 
 
 if __name__ == '__main__':
-    build_structural_hole_database()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='构建结构洞耦合数据库')
+    parser.add_argument('--step3_dir', type=str, help='step3输出目录路径')
+    parser.add_argument('--step4_dir', type=str, help='step4输出目录路径')
+    
+    args = parser.parse_args()
+    build_structural_hole_database(args.step3_dir, args.step4_dir)

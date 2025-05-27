@@ -119,16 +119,22 @@ def process_batch(batch_data: pd.DataFrame, non_personal_keywords: List[str],
                 
     return results
 
-def remove_personal_applications(input_path: str, output_path: str) -> str:
+def remove_personal_applications(input_path: str = None, output_path: str = None) -> str:
     """剔除个人专利申请数据
     
     Args:
-        input_path: 输入CSV文件路径
-        output_path: 输出CSV文件路径
+        input_path: 输入CSV文件路径，默认'../data/step1_output/patent_data_cleaned.csv'
+        output_path: 输出CSV文件路径，默认'../data/step1_output/patent_data_selected_columns.csv'
         
     Returns:
         str: 处理结果报告
     """
+    # 设置默认路径
+    if input_path is None:
+        input_path = '../data/step1_output/patent_data_cleaned.csv'
+    if output_path is None:
+        output_path = '../data/step1_output/patent_data_selected_columns.csv'
+    
     # 转换路径为Path对象
     input_path = Path(input_path)
     output_path = Path(output_path)
@@ -184,7 +190,7 @@ def remove_personal_applications(input_path: str, output_path: str) -> str:
         # 保存结果为CSV
         result_df = pd.DataFrame(remaining_data)
         final_count = len(result_df)
-        result_df.to_csv(output_path, index=False, encoding='utf-8')
+        result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
         # 保存缓存
         save_cache(cache, cache_dir)

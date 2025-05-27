@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def clean_patent_data(input_path=None, output_path=None):
-    """清洗专利数据(CSV版本)
+    """清洗专利数据
 
     Args:
         input_path (str/Path): CSV输入文件路径，默认'./data/input/original_patent_data.csv'
@@ -37,7 +37,7 @@ def clean_patent_data(input_path=None, output_path=None):
         df.dropna(subset=['IPC分类'], inplace=True)
         df.drop_duplicates(subset=['公开（公告）号'], keep='first', inplace=True)
 
-        # 保存CSV
+        # 保存为CSV
         df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
         print(f"清洗完成，保存到: {output_path}")

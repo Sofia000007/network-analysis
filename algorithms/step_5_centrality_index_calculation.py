@@ -2,19 +2,22 @@
 # License: MIT
 
 import pandas as pd
-import os
+from pathlib import Path
 
 
-def calculate_centrality_index():
+def calculate_centrality_index(step2_dir=None, step5_dir=None):
+    """计算中心度指数
+    
+    Args:
+        step2_dir (str/Path): step2输出目录路径，默认'../data/step2_output'
+        step5_dir (str/Path): step5输出目录路径，默认'../data/step5_output'
+    
+    Returns:
+        str: 处理结果报告
     """
-    计算中心度指数
-    读取step5_output中的centrality_coupling_database.csv和step2_output中的节点和边数据
-    输出各网络的中心度指数文件到step5_output文件夹
-    """
-    # 定义基础路径
-    base_dir = os.path.join('..', 'data')
-    step2_dir = os.path.join(base_dir, 'step2_output')
-    step5_dir = os.path.join(base_dir, 'step5_output')
+    # 设置默认路径
+    step2_dir = Path(step2_dir) if step2_dir else Path('../data/step2_output')
+    step5_dir = Path(step5_dir) if step5_dir else Path('../data/step5_output')
 
     # 网络配置
     networks = {
@@ -46,11 +49,14 @@ def calculate_centrality_index():
 
     try:
         # 确保输出目录存在
-        os.makedirs(step5_dir, exist_ok=True)
+        step5_dir.mkdir(parents=True, exist_ok=True)
 
         # 加载中心度数据库
-        centrality_db_path = os.path.join(step5_dir, 'centrality_coupling_database.csv')
-        centrality_db = pd.read_csv(centrality_db_path)
+        centrality_db_path = step5_dir / 'centrality_coupling_database.csv'
+        if not centrality_db_path.exists():
+            raise FileNotFoundError(f"中心度数据库文件不存在：{centrality_db_path}")
+            
+        centrality_db = pd.read_csv(centrality_db_path, encoding='utf-8')
 
         # 检查必要列是否存在
         required_db_cols = ['节点', 'centrality_coupling*weights']
@@ -63,8 +69,11 @@ def calculate_centrality_index():
             print(f"\n正在处理{net_name}...")
 
             # 加载节点数据
-            nodes_path = os.path.join(step2_dir, net_config['nodes_file'])
-            nodes_df = pd.read_csv(nodes_path)
+            nodes_path = step2_dir / net_config['nodes_file']
+            if not nodes_path.exists():
+                raise FileNotFoundError(f"节点文件不存在：{nodes_path}")
+                
+            nodes_df = pd.read_csv(nodes_path, encoding='utf-8')
 
             # 检查节点列是否存在
             if '节点' not in nodes_df.columns:
@@ -73,8 +82,11 @@ def calculate_centrality_index():
             # 加载边数据
             edge_dfs = []
             for edge_file in net_config['edge_files']:
-                edge_path = os.path.join(step2_dir, edge_file)
-                edge_df = pd.read_csv(edge_path)
+                edge_path = step2_dir / edge_file
+                if not edge_path.exists():
+                    raise FileNotFoundError(f"边文件不存在：{edge_path}")
+                    
+                edge_df = pd.read_csv(edge_path, encoding='utf-8')
 
                 # 检查边列是否存在
                 if not all(col in edge_df.columns for col in ['节点1', '节点2']):
@@ -123,8 +135,8 @@ def calculate_centrality_index():
             })
 
             # 保存结果
-            output_path = os.path.join(step5_dir, net_config['output_file'])
-            result_df.to_csv(output_path, index=False)
+            output_path = step5_dir / net_config['output_file']
+            result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
             # 打印统计信息
             print(f"已保存{net_name}中心度指数到: {output_path}")
@@ -157,4 +169,11 @@ def calculate_centrality_index():
 
 
 if __name__ == '__main__':
-    calculate_centrality_index()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='计算中心度指数')
+    parser.add_argument('--step2_dir', type=str, help='step2输出目录路径')
+    parser.add_argument('--step5_dir', type=str, help='step5输出目录路径')
+    
+    args = parser.parse_args()
+    calculate_centrality_index(args.step2_dir, args.step5_dir)

@@ -2,20 +2,24 @@
 # License: MIT
 
 import pandas as pd
-import os
+from pathlib import Path
 
 
-def build_criticality_centrality_database():
+def build_criticality_centrality_database(step4_dir=None, step5_dir=None, output_dir=None):
+    """构建关键性-核心性数据库
+    
+    Args:
+        step4_dir (str/Path): step4输出目录路径，默认'../data/step4_output'
+        step5_dir (str/Path): step5输出目录路径，默认'../data/step5_output'
+        output_dir (str/Path): 输出目录路径，默认'../data/step6_output'
+    
+    Returns:
+        str: 处理结果报告
     """
-    构建关键性-核心性数据库
-    从step4_output读取关键性指数文件，从step5_output读取核心性指数文件
-    合并数据并输出到step6_output文件夹
-    """
-    # 定义基础路径
-    base_dir = os.path.join('..', 'data')
-    step4_dir = os.path.join(base_dir, 'step4_output')  # 关键性文件路径
-    step5_dir = os.path.join(base_dir, 'step5_output')  # 核心性文件路径
-    output_dir = os.path.join(base_dir, 'step6_output')
+    # 设置默认路径
+    step4_dir = Path(step4_dir) if step4_dir else Path('../data/step4_output')
+    step5_dir = Path(step5_dir) if step5_dir else Path('../data/step5_output')
+    output_dir = Path(output_dir) if output_dir else Path('../data/step6_output')
 
     # 网络配置
     networks = {
@@ -38,7 +42,7 @@ def build_criticality_centrality_database():
 
     try:
         # 确保输出目录存在
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # 合并所有网络数据
         combined_df = pd.DataFrame()
@@ -47,16 +51,22 @@ def build_criticality_centrality_database():
             print(f"正在处理{net_name}...")
 
             # 从step4加载关键性数据
-            crit_path = os.path.join(step4_dir, net_config['criticality_file'])
-            crit_df = pd.read_csv(crit_path)
+            crit_path = step4_dir / net_config['criticality_file']
+            if not crit_path.exists():
+                raise FileNotFoundError(f"关键性文件不存在：{crit_path}")
+                
+            crit_df = pd.read_csv(crit_path, encoding='utf-8')
 
             # 检查必要列
             if '节点' not in crit_df.columns or 'criticality_index' not in crit_df.columns:
                 raise ValueError(f"{net_name}关键性文件缺少必要列('节点'或'criticality_index')")
 
             # 从step5加载核心性数据
-            cent_path = os.path.join(step5_dir, net_config['centrality_file'])
-            cent_df = pd.read_csv(cent_path)
+            cent_path = step5_dir / net_config['centrality_file']
+            if not cent_path.exists():
+                raise FileNotFoundError(f"核心性文件不存在：{cent_path}")
+                
+            cent_df = pd.read_csv(cent_path, encoding='utf-8')
 
             # 检查必要列
             if '节点' not in cent_df.columns or 'centrality_index' not in cent_df.columns:
@@ -93,8 +103,8 @@ def build_criticality_centrality_database():
         final_df = final_df[output_cols]
 
         # 保存结果
-        output_path = os.path.join(output_dir, 'criticality_and_centrality_database.csv')
-        final_df.to_csv(output_path, index=False)
+        output_path = output_dir / 'criticality_and_centrality_database.csv'
+        final_df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
         # 统计信息
         stats = {
@@ -136,4 +146,12 @@ def build_criticality_centrality_database():
 
 
 if __name__ == '__main__':
-    build_criticality_centrality_database()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='构建关键性-核心性数据库')
+    parser.add_argument('--step4_dir', type=str, help='step4输出目录路径')
+    parser.add_argument('--step5_dir', type=str, help='step5输出目录路径')
+    parser.add_argument('--output_dir', type=str, help='输出目录路径')
+    
+    args = parser.parse_args()
+    build_criticality_centrality_database(args.step4_dir, args.step5_dir, args.output_dir)

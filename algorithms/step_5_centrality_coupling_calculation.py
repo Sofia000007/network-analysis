@@ -2,19 +2,22 @@
 # License: MIT
 
 import pandas as pd
-import os
+from pathlib import Path
 
 
-def calculate_centrality_coupling():
+def calculate_centrality_coupling(input_dir=None, output_dir=None):
+    """计算中心度耦合指标
+    
+    Args:
+        input_dir (str/Path): 输入目录路径，默认'../data/step2_output'
+        output_dir (str/Path): 输出目录路径，默认'../data/step5_output'
+    
+    Returns:
+        str: 处理结果报告
     """
-    计算中心度耦合指标
-    读取step2_output中的各网络节点和边数据
-    计算中心度耦合指标并输出到step5_output文件夹
-    """
-    # 定义基础路径
-    base_dir = os.path.join('..', 'data')
-    input_dir = os.path.join(base_dir, 'step2_output')
-    output_dir = os.path.join(base_dir, 'step5_output')
+    # 设置默认路径
+    input_dir = Path(input_dir) if input_dir else Path('../data/step2_output')
+    output_dir = Path(output_dir) if output_dir else Path('../data/step5_output')
 
     # 网络配置
     networks = {
@@ -37,25 +40,25 @@ def calculate_centrality_coupling():
 
     try:
         # 确保输出目录存在
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         results = {}
 
         for net_name, net_files in networks.items():
             # 构建文件路径
-            nodes_path = os.path.join(input_dir, net_files['nodes'])
-            edges_path = os.path.join(input_dir, net_files['edges'])
-            output_path = os.path.join(output_dir, net_files['output'])
+            nodes_path = input_dir / net_files['nodes']
+            edges_path = input_dir / net_files['edges']
+            output_path = output_dir / net_files['output']
 
             # 检查文件是否存在
-            if not os.path.exists(nodes_path):
+            if not nodes_path.exists():
                 raise FileNotFoundError(f"节点文件不存在: {nodes_path}")
-            if not os.path.exists(edges_path):
+            if not edges_path.exists():
                 raise FileNotFoundError(f"边文件不存在: {edges_path}")
 
             # 加载数据
-            nodes_df = pd.read_csv(nodes_path)
-            edges_df = pd.read_csv(edges_path)
+            nodes_df = pd.read_csv(nodes_path, encoding='utf-8')
+            edges_df = pd.read_csv(edges_path, encoding='utf-8')
 
             # 检查必要列是否存在
             required_node_cols = ['节点']
@@ -82,7 +85,7 @@ def calculate_centrality_coupling():
                 centrality_df.at[idx, 'centrality_coupling'] = count
 
             # 保存结果
-            centrality_df.to_csv(output_path, index=False)
+            centrality_df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
             # 记录结果信息
             results[net_name] = {
@@ -121,4 +124,11 @@ def calculate_centrality_coupling():
 
 
 if __name__ == '__main__':
-    calculate_centrality_coupling()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='计算中心度耦合指标')
+    parser.add_argument('--input_dir', type=str, help='输入目录路径')
+    parser.add_argument('--output_dir', type=str, help='输出目录路径')
+    
+    args = parser.parse_args()
+    calculate_centrality_coupling(args.input_dir, args.output_dir)

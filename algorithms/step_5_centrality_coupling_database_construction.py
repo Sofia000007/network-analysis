@@ -3,26 +3,32 @@
 
 import pandas as pd
 import numpy as np
-import os
+from pathlib import Path
 
 
-def build_centrality_coupling_database():
+def build_centrality_coupling_database(step3_dir=None, step5_dir=None):
+    """构建中心度耦合数据库
+    
+    Args:
+        step3_dir (str/Path): step3输出目录路径，默认'../data/step3_output'
+        step5_dir (str/Path): step5输出目录路径，默认'../data/step5_output'
+    
+    Returns:
+        str: 处理结果报告
     """
-    构建中心度耦合数据库
-    读取step3_output中的network_layer_weights.txt和step5_output中的各网络中心度数据
-    输出整合后的数据库到step5_output文件夹
-    """
-    # 定义基础路径
-    base_dir = os.path.join('..', 'data')
-    step3_dir = os.path.join(base_dir, 'step3_output')
-    step5_dir = os.path.join(base_dir, 'step5_output')
+    # 设置默认路径
+    step3_dir = Path(step3_dir) if step3_dir else Path('../data/step3_output')
+    step5_dir = Path(step5_dir) if step5_dir else Path('../data/step5_output')
 
     try:
         # 确保输出目录存在
-        os.makedirs(step5_dir, exist_ok=True)
+        step5_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. 加载网络层权重
-        weights_path = os.path.join(step3_dir, 'network_layer_weights.txt')
+        weights_path = step3_dir / 'network_layer_weights.txt'
+        if not weights_path.exists():
+            raise FileNotFoundError(f"网络层权重文件不存在：{weights_path}")
+            
         network_layer_weights = np.loadtxt(weights_path)
         print(f"成功加载网络层权重：{network_layer_weights}")
 
@@ -48,14 +54,14 @@ def build_centrality_coupling_database():
         # 3. 加载并处理各网络数据
         dfs = []
         for net_name, net_config in networks.items():
-            input_path = os.path.join(step5_dir, net_config['input_file'])
+            input_path = step5_dir / net_config['input_file']
 
             # 检查文件是否存在
-            if not os.path.exists(input_path):
+            if not input_path.exists():
                 raise FileNotFoundError(f"{net_name}中心度文件不存在: {input_path}")
 
             # 读取数据
-            df = pd.read_csv(input_path)
+            df = pd.read_csv(input_path, encoding='utf-8')
 
             # 检查必要列是否存在
             required_cols = ['节点', 'centrality_coupling']
@@ -90,13 +96,13 @@ def build_centrality_coupling_database():
             ]
 
             # 保存结果
-            output_path = os.path.join(step5_dir, net_config['output_file'])
-            net_df[output_cols].to_csv(output_path, index=False)
+            output_path = step5_dir / net_config['output_file']
+            net_df[output_cols].to_csv(output_path, index=False, encoding='utf-8-sig')
 
         # 5. 保存整合后的数据库
         combined_df = pd.concat(dfs, ignore_index=True)
-        database_path = os.path.join(step5_dir, 'centrality_coupling_database.csv')
-        combined_df.to_csv(database_path, index=False)
+        database_path = step5_dir / 'centrality_coupling_database.csv'
+        combined_df.to_csv(database_path, index=False, encoding='utf-8-sig')
 
         result_msg = (
             f"中心度耦合数据库构建完成！\n"
@@ -124,4 +130,11 @@ def build_centrality_coupling_database():
 
 
 if __name__ == '__main__':
-    build_centrality_coupling_database()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='构建中心度耦合数据库')
+    parser.add_argument('--step3_dir', type=str, help='step3输出目录路径')
+    parser.add_argument('--step5_dir', type=str, help='step5输出目录路径')
+    
+    args = parser.parse_args()
+    build_centrality_coupling_database(args.step3_dir, args.step5_dir)

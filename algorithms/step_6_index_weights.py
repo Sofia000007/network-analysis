@@ -3,32 +3,36 @@
 
 import pandas as pd
 import numpy as np
-import os
+from pathlib import Path
 
 
-def calculate_index_weights():
+def calculate_index_weights(input_dir=None, output_dir=None):
+    """计算关键性和核心性指标权重
+    
+    Args:
+        input_dir (str/Path): 输入目录路径，默认'../data/step6_output'
+        output_dir (str/Path): 输出目录路径，默认'../data/step6_output'
+    
+    Returns:
+        str: 处理结果报告
     """
-    计算关键性和核心性指标权重
-    使用CRITIC方法计算权重并保存到step6_output文件夹
-    """
-    # 定义基础路径
-    base_dir = os.path.join('..', 'data')
-    input_dir = os.path.join(base_dir, 'step6_output')
-    output_dir = os.path.join(base_dir, 'step6_output')
+    # 设置默认路径
+    input_dir = Path(input_dir) if input_dir else Path('../data/step6_output')
+    output_dir = Path(output_dir) if output_dir else Path('../data/step6_output')
 
     # 输入输出文件路径
-    input_file = os.path.join(input_dir, 'criticality_and_centrality_database.csv')
-    output_file = os.path.join(output_dir, 'index_weights.txt')
+    input_file = input_dir / 'criticality_and_centrality_database.csv'
+    output_file = output_dir / 'index_weights.txt'
 
     try:
         # 确保输出目录存在
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. 加载数据
-        if not os.path.exists(input_file):
+        if not input_file.exists():
             raise FileNotFoundError(f"输入文件不存在: {input_file}")
 
-        df = pd.read_csv(input_file)
+        df = pd.read_csv(input_file, encoding='utf-8')
 
         # 检查必要列是否存在
         required_cols = ['关键性', '核心性']
@@ -61,7 +65,7 @@ def calculate_index_weights():
         }
 
         # 5. 保存权重结果
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(f"criticality_weight: {weights_dict['criticality_weight']:.4f}\n")
             f.write(f"centrality_weight: {weights_dict['centrality_weight']:.4f}\n")
 
@@ -92,4 +96,11 @@ def calculate_index_weights():
 
 
 if __name__ == '__main__':
-    calculate_index_weights()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='计算关键性和核心性指标权重')
+    parser.add_argument('--input_dir', type=str, help='输入目录路径')
+    parser.add_argument('--output_dir', type=str, help='输出目录路径')
+    
+    args = parser.parse_args()
+    calculate_index_weights(args.input_dir, args.output_dir)

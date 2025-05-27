@@ -2,71 +2,70 @@
 # License: MIT
 
 import pandas as pd
-import os
-from itertools import product
+from pathlib import Path
 
-
-def construct_tech_collaborative_network():
-    """构建技术-合作研发双层网络"""
-    # 定义文件路径
-    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.csv')
-    output_dir = os.path.join('..', 'data', 'step2_output')
-    nodes_path = os.path.join(output_dir, 'technology-collaborative_R&D_network_nodes.csv')
-    edges_path = os.path.join(output_dir, 'technology-collaborative_R&D_network_edges.csv')
+def construct_technology_collaborative_RD_network(input_path=None, output_dir=None):
+    """构建技术-合作研发双层网络
+    
+    Args:
+        input_path (str/Path): 输入CSV文件路径，默认'../data/step1_output/patent_data_selected_columns.csv'
+        output_dir (str/Path): 输出目录路径，默认'../data/step2_output'
+    
+    Returns:
+        str: 处理结果报告
+    """
+    # 设置默认路径
+    input_path = Path(input_path) if input_path else Path('../data/step1_output/patent_data_selected_columns.csv')
+    output_dir = Path(output_dir) if output_dir else Path('../data/step2_output')
+    
+    # 设置输出文件路径
+    nodes_path = output_dir / 'technology-collaborative_R&D_network_nodes.csv'
+    edges_path = output_dir / 'technology-collaborative_R&D_network_edges.csv'
 
     # 确保输出目录存在
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        # 读取数据
-        df = pd.read_csv(input_path)
-        original_count = len(df)
+        # 读取CSV数据
+        if not input_path.exists():
+            raise FileNotFoundError(f"输入文件不存在：{input_path}")
+            
+        df = pd.read_csv(input_path, encoding='utf-8')
+        original_records = len(df)
 
         # 初始化数据容器
         nodes = set()
         edges = set()
 
-        # 处理每行数据
+        # 处理数据
         for _, row in df.iterrows():
-            # 处理技术层数据（IPC分类）
-            ipc_codes = [code.strip()[:4] for code in str(row['IPC分类']).split("|") if code.strip()[:4]]
-
-            # 处理合作层数据（专利权人）
-            patentees = [p.strip() for p in str(row['专利权人']).split("|") if p.strip()]
-
-            # 添加技术层节点（层标识2）
-            nodes.update([(ipc, 2) for ipc in ipc_codes if len(ipc) >= 4])
-
-            # 添加合作层节点（层标识3）
-            nodes.update([(patentee, 3) for patentee in patentees if patentee])
-
-            # 生成跨层全连接边
-            if ipc_codes and patentees:
-                for ipc, patentee in product(ipc_codes, patentees):
-                    edges.add((ipc, patentee))
+            ipc_codes = str(row['IPC分类']).split('|')
+            ipc_codes = [code.strip() for code in ipc_codes if code.strip()]
+            
+            applicants = str(row['专利权人']).split('|')
+            applicants = [app.strip() for app in applicants if app.strip()]
+            
+            # 添加节点和边
+            if ipc_codes and applicants:
+                nodes.update(ipc_codes)
+                nodes.update(applicants)
+                for ipc in ipc_codes:
+                    for applicant in applicants:
+                        edge = tuple(sorted([ipc, applicant]))
+                        edges.add(edge)
 
         # 生成数据框
-        nodes_df = pd.DataFrame(
-            sorted(nodes, key=lambda x: x[1]),  # 按层排序
-            columns=["节点", "网络层"]
-        )
-        edges_df = pd.DataFrame(
-            sorted(edges),
-            columns=["节点1", "节点2"]
-        )
+        nodes_df = pd.DataFrame(sorted(nodes), columns=["节点"])
+        edges_df = pd.DataFrame(sorted(edges), columns=["节点1", "节点2"])
 
-        # 保存结果
-        nodes_df.to_csv(nodes_path, index=False)
-        edges_df.to_csv(edges_path, index=False)
+        # 保存结果为CSV
+        nodes_df.to_csv(nodes_path, index=False, encoding='utf-8-sig')
+        edges_df.to_csv(edges_path, index=False, encoding='utf-8-sig')
 
-        # 统计报告
-        tech_nodes = len([n for n in nodes if n[1] == 2])
-        collab_nodes = len([n for n in nodes if n[1] == 3])
+        # 生成统计报告
         report = (
-            f"双层网络构建完成\n原始专利数：{original_count}条\n"
-            f"技术节点数：{tech_nodes}个（IPC前4位）\n"
-            f"合作机构数：{collab_nodes}个\n"
-            f"跨层关联边数：{len(edges)}条\n"
+            f"网络构建完成\n原始专利数：{original_records}条\n"
+            f"生成节点数：{len(nodes)}个\n生成边数：{len(edges)}条\n"
             f"节点文件：{nodes_path}\n边文件：{edges_path}"
         )
         print(report)
@@ -77,6 +76,12 @@ def construct_tech_collaborative_network():
         print(error_msg)
         return error_msg
 
-
 if __name__ == '__main__':
-    construct_tech_collaborative_network()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='构建技术-合作研发双层网络')
+    parser.add_argument('--input', type=str, help='输入CSV文件路径')
+    parser.add_argument('--output_dir', type=str, help='输出目录路径')
+    
+    args = parser.parse_args()
+    construct_technology_collaborative_RD_network(args.input, args.output_dir)

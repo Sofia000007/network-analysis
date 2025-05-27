@@ -2,70 +2,67 @@
 # License: MIT
 
 import pandas as pd
-import os
+from pathlib import Path
 
-def construct_knowledge_technology_network():
-    """构建知识-技术双层网络"""
-    # 定义文件路径
-    input_path = os.path.join('..', 'data', 'step1_output', 'patent_data_selected_columns.csv')
-    output_dir = os.path.join('..', 'data', 'step2_output')
-    nodes_path = os.path.join(output_dir, 'knowledge-technology_network_nodes.csv')
-    edges_path = os.path.join(output_dir, 'knowledge-technology_network_edges.csv')
+def construct_knowledge_technology_network(input_path=None, output_dir=None):
+    """构建知识-技术双层网络
+    
+    Args:
+        input_path (str/Path): 输入CSV文件路径，默认'../data/step1_output/patent_data_selected_columns.csv'
+        output_dir (str/Path): 输出目录路径，默认'../data/step2_output'
+    
+    Returns:
+        str: 处理结果报告
+    """
+    # 设置默认路径
+    input_path = Path(input_path) if input_path else Path('../data/step1_output/patent_data_selected_columns.csv')
+    output_dir = Path(output_dir) if output_dir else Path('../data/step2_output')
+    
+    # 设置输出文件路径
+    nodes_path = output_dir / 'knowledge-technology_network_nodes.csv'
+    edges_path = output_dir / 'knowledge-technology_network_edges.csv'
 
     # 确保输出目录存在
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        # 读取数据（不包含表头）
-        df = pd.read_csv(input_path, header=None).iloc[1:]  # 跳过首行表头
+        # 读取CSV数据
+        if not input_path.exists():
+            raise FileNotFoundError(f"输入文件不存在：{input_path}")
+            
+        df = pd.read_csv(input_path, encoding='utf-8')
+        original_records = len(df)
 
-        # 数据容器
+        # 初始化数据容器
         nodes = set()
         edges = set()
 
-        # 处理每行数据
+        # 处理数据
         for _, row in df.iterrows():
-            # 提取并清洗专利号
-            patent_id = str(row[0]).strip()
-            if not patent_id:
-                continue
-
-            # 添加知识层节点（层标识1）
-            nodes.add((patent_id, 1))
-
-            # 处理IPC分类数据
-            ipc_codes = []
-            for code in str(row[3]).split("|"):  # 第四列为IPC分类
-                code = code.strip()[:4]  # 保留前四位
-                if code and len(code) >= 4:
-                    ipc_codes.append(code)
-                    # 添加技术层节点（层标识2）
-                    nodes.add((code, 2))
-
-            # 生成连边关系
-            for ipc in ipc_codes:
-                edges.add((patent_id, ipc))
+            patent_num = str(row['公开（公告）号']).strip()
+            ipc_codes = str(row['IPC分类']).split('|')
+            ipc_codes = [code.strip() for code in ipc_codes if code.strip()]
+            
+            # 添加节点和边
+            if patent_num and ipc_codes:
+                nodes.add(patent_num)
+                nodes.update(ipc_codes)
+                for ipc in ipc_codes:
+                    edge = tuple(sorted([patent_num, ipc]))
+                    edges.add(edge)
 
         # 生成数据框
-        nodes_df = pd.DataFrame(
-            sorted(nodes, key=lambda x: x[1]),  # 按层排序
-            columns=["节点", "网络层"]
-        )
-        edges_df = pd.DataFrame(
-            sorted(edges),
-            columns=["节点1", "节点2"]
-        )
+        nodes_df = pd.DataFrame(sorted(nodes), columns=["节点"])
+        edges_df = pd.DataFrame(sorted(edges), columns=["节点1", "节点2"])
 
-        # 保存结果
-        nodes_df.to_csv(nodes_path, index=False)
-        edges_df.to_csv(edges_path, index=False)
+        # 保存结果为CSV
+        nodes_df.to_csv(nodes_path, index=False, encoding='utf-8-sig')
+        edges_df.to_csv(edges_path, index=False, encoding='utf-8-sig')
 
-        # 统计报告
+        # 生成统计报告
         report = (
-            f"双层网络构建完成\n原始记录数：{len(df)}条\n"
-            f"知识节点数：{len([n for n in nodes if n[1]==1])}个\n"
-            f"技术节点数：{len([n for n in nodes if n[1]==2])}个\n"
-            f"关联边数：{len(edges)}条\n"
+            f"网络构建完成\n原始专利数：{original_records}条\n"
+            f"生成节点数：{len(nodes)}个\n生成边数：{len(edges)}条\n"
             f"节点文件：{nodes_path}\n边文件：{edges_path}"
         )
         print(report)
@@ -77,4 +74,11 @@ def construct_knowledge_technology_network():
         return error_msg
 
 if __name__ == '__main__':
-    construct_knowledge_technology_network()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='构建知识-技术双层网络')
+    parser.add_argument('--input', type=str, help='输入CSV文件路径')
+    parser.add_argument('--output_dir', type=str, help='输出目录路径')
+    
+    args = parser.parse_args()
+    construct_knowledge_technology_network(args.input, args.output_dir)

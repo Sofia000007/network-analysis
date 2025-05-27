@@ -1,11 +1,10 @@
 # Copyright © dongbingxue. All rights reserved.
 # License: MIT
 
-import os
-from pathlib import Path
 import pandas as pd
 import numpy as np
 from numba import jit
+from pathlib import Path
 
 
 def load_network_data(network_type: str, input_dir: Path) -> tuple:
@@ -15,14 +14,17 @@ def load_network_data(network_type: str, input_dir: Path) -> tuple:
         nodes_path = input_dir / f"{network_type}_network_nodes.csv"
         edges_path = input_dir / f"{network_type}_network_edges.csv"
 
+        if not nodes_path.exists() or not edges_path.exists():
+            raise FileNotFoundError(f"网络文件不存在：{nodes_path} 或 {edges_path}")
+
         # 读取节点数据（单列）
-        nodes_df = pd.read_csv(nodes_path)
+        nodes_df = pd.read_csv(nodes_path, encoding='utf-8')
         if "节点" not in nodes_df.columns:
             raise ValueError("节点文件必须包含'节点'列")
         nodes = nodes_df["节点"].astype(str).unique()
 
         # 读取边数据（两列）
-        edges_df = pd.read_csv(edges_path)
+        edges_df = pd.read_csv(edges_path, encoding='utf-8')
         if not {"节点1", "节点2"}.issubset(edges_df.columns):
             raise ValueError("边文件必须包含'节点1'和'节点2'列")
         edges_df = edges_df[["节点1", "节点2"]].rename(
@@ -111,11 +113,11 @@ def calculate_structural_hole(network_type: str, input_dir: Path, output_dir: Pa
         })
 
         # 确保输出目录存在
-        os.makedirs(output_dir, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # 保存结果
         output_path = output_dir / f"{network_type}_network_structural_hole_coupling.csv"
-        result_df.to_csv(output_path, index=False)
+        result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
 
         return f"[{network_type}]计算完成，结果保存至：{output_path}"
 
@@ -133,12 +135,19 @@ def _get_layer_number(network_type: str) -> int:
     return layer_mapping.get(network_type, 0)
 
 
-def structural_hole_calculation():
-    """统一处理所有网络类型"""
-    # 定义路径
-    base_dir = Path(__file__).parent.parent
-    input_dir = base_dir / "data" / "step2_output"
-    output_dir = base_dir / "data" / "step4_output"
+def structural_hole_calculation(input_dir=None, output_dir=None):
+    """统一处理所有网络类型
+    
+    Args:
+        input_dir (str/Path): 输入目录路径，默认'../data/step2_output'
+        output_dir (str/Path): 输出目录路径，默认'../data/step4_output'
+    
+    Returns:
+        str: 处理结果报告
+    """
+    # 设置默认路径
+    input_dir = Path(input_dir) if input_dir else Path('../data/step2_output')
+    output_dir = Path(output_dir) if output_dir else Path('../data/step4_output')
 
     # 处理所有网络类型
     network_types = ["knowledge", "technology", "collaborative_R&D"]
@@ -154,19 +163,18 @@ def structural_hole_calculation():
             results.append(error_msg)
             print(error_msg)
 
-    return "\n".join(results)
+    # 生成报告
+    report = "\n".join(results)
+    print(report)
+    return report
 
 
 if __name__ == '__main__':
-    # 执行计算并打印结果
-    result_log = structural_hole_calculation()
-
-    # 将运行结果写入日志文件
-    log_dir = Path(__file__).parent.parent / "logs"
-    os.makedirs(log_dir, exist_ok=True)
-    log_path = log_dir / "step4_calculation.log"
-
-    with open(log_path, "w", encoding="utf-8") as f:
-        f.write(result_log)
-
-    print(f"\n完整日志已保存至：{log_path}")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='计算结构洞耦合')
+    parser.add_argument('--input_dir', type=str, help='输入目录路径')
+    parser.add_argument('--output_dir', type=str, help='输出目录路径')
+    
+    args = parser.parse_args()
+    structural_hole_calculation(args.input_dir, args.output_dir)
