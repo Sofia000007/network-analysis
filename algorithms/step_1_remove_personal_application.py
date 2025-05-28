@@ -3,214 +3,252 @@
 
 import pandas as pd
 from tqdm import tqdm
-import re
 import os
-import requests
-from bs4 import BeautifulSoup
-from deep_translator import GoogleTranslator as Translator
+import json
 from pathlib import Path
 import concurrent.futures
-from functools import lru_cache
-import json
-from typing import List, Set, Dict, Union
 import time
 import logging
-from datetime import datetime
+import threading
+from typing import Dict, List, Optional
+import argparse
+from dotenv import load_dotenv
+from openai import OpenAI
+import backoff  # 添加 backoff 库用于重试机制
 
-def load_cache(cache_dir: Path) -> Dict[str, Set[str]]:
-    """加载缓存数据"""
-    cache_file = cache_dir / 'company_name_cache.json'
-    if cache_file.exists():
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# 加载环境变量（向上查找一级目录找到项目根目录）
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+# 初始化DeepSeek客户端
+client = OpenAI(
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    base_url="https://api.deepseek.com/v1",
+    timeout=30.0  # 增加超时时间
+)
+
+# 常量配置
+CACHE_VERSION = "v1.2"
+CACHE_FILENAME = "org_classification_cache.json"
+MAX_RETRIES = 3
+INITIAL_WAIT = 1
+MAX_WAIT = 10
+
+CLASSIFICATION_PROMPT = """请严格按以下规则分析：
+1. 如果名称明显是公司、机构、组织（包含缩写），回答 true
+2. 如果名称包含明显个人特征（如人名、称谓），回答 false
+3. 如果无法确定，回答 false
+
+名称：{name}
+只需回答 true/false："""
+
+# 初始化线程安全锁
+cache_lock = threading.Lock()
+
+@backoff.on_exception(
+    backoff.expo,
+    (Exception),
+    max_tries=MAX_RETRIES,
+    max_time=30,
+    giveup=lambda e: isinstance(e, KeyboardInterrupt)
+)
+def get_completion(prompt: str) -> str:
+    """获取DeepSeek API响应，带指数退避的重试机制"""
+    messages = [{"role": "user", "content": prompt}]
+    try:
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=messages,
+            temperature=0
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logging.warning(f"API请求失败: {str(e)}")
+        raise
+
+
+def load_cache(cache_path: Path) -> Dict[str, bool]:
+    """加载增强型缓存"""
+    cache_data = {}
+    if cache_path.exists():
         try:
-            with open(cache_file, 'r', encoding='utf-8') as f:
+            with open(cache_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return {
-                    'company': set(data['company']),
-                    'non_company': set(data['non_company'])
-                }
+                if data.get('version') == CACHE_VERSION:
+                    cache_data = data['mapping']
+                    logging.info(f"已加载缓存条目：{len(cache_data)}条")
         except Exception as e:
-            print(f"加载缓存失败: {e}")
-    return {'company': set(), 'non_company': set()}
+            logging.error(f"缓存加载失败: {e}")
+    return cache_data
 
-def save_cache(cache_data: Dict[str, Set[str]], cache_dir: Path) -> None:
-    """保存缓存数据"""
-    cache_file = cache_dir / 'company_name_cache.json'
-    cache_dir.mkdir(parents=True, exist_ok=True)
+
+def save_cache(cache_data: Dict[str, bool], cache_path: Path) -> None:
+    """保存增强型缓存"""
     try:
-        with open(cache_file, 'w', encoding='utf-8') as f:
-            cache_data_json = {
-                'company': list(cache_data['company']),
-                'non_company': list(cache_data['non_company'])
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            data = {
+                'version': CACHE_VERSION,
+                'mapping': cache_data,
+                'last_updated': time.strftime("%Y-%m-%d %H:%M:%S")
             }
-            json.dump(cache_data_json, f, ensure_ascii=False)
+            json.dump(data, f, ensure_ascii=False)
+        logging.info(f"缓存已保存至：{cache_path}")
     except Exception as e:
-        print(f"保存缓存失败: {e}")
+        logging.error(f"缓存保存失败: {e}")
 
-@lru_cache(maxsize=1000)
-def is_company_name(name: str) -> bool:
-    """检查名称是否包含公司相关后缀（使用LRU缓存）"""
-    company_suffixes = r'\b(GmbH|Inc\.?|LLC|Corp\.?|Ltd\.?|Pty Ltd|S\.A\.?|PLC|AG|B\.V\.?|S\.L\.?|K\.K\.?|N\.V\.?|S\.A\.S\.?|OÜ|C\.C\.?|Ltda|Kft|S\.r\.o|S\.A\.R\.L\.?|GmbH & Co\. KG|LLP|KG|LP|S\.C\.?|S\.r\.l\.?|SA|SAS|A/S|N.V.|K/S|C.C.)\b'
-    return bool(re.search(company_suffixes, name, re.IGNORECASE))
 
-def batch_translate(names: List[str], translator: Translator, batch_size: int = 50) -> dict:
-    """批量翻译名称"""
-    translations = {}
-    for i in range(0, len(names), batch_size):
-        batch = names[i:i + batch_size]
+def call_deepseek_api(name: str) -> Optional[bool]:
+    """调用DeepSeek分类API（带重试机制）"""
+    prompt = CLASSIFICATION_PROMPT.format(name=name)
+
+    for attempt in range(3):
         try:
-            results = [translator.translate(name, dest='zh-cn') for name in batch]
-            translations.update({name: result for name, result in zip(batch, results)})
-            time.sleep(1)  # 避免触发API限制
+            response = get_completion(prompt).lower()
+            if response == 'true':
+                return True
+            if response == 'false':
+                return False
+            logging.warning(f"异常API响应：{response}")
         except Exception as e:
-            print(f"翻译批次出错: {e}")
-    return translations
+            logging.warning(f"分类请求失败（尝试{attempt + 1}/3）: {str(e)}")
+            time.sleep(2 ** attempt)
+    return None
 
-def check_company_name_online(name: str, cache: dict) -> bool:
-    """检查公司名称（带缓存）"""
-    if name in cache['company']:
-        return True
-    if name in cache['non_company']:
-        return False
 
-    try:
-        search_url = f"https://www.baidu.com/s?wd={requests.utils.quote(name)}"
-        response = requests.get(search_url, timeout=5)
-        is_company = False
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            is_company = '公司' in soup.text or '有限公司' in soup.text
-        
-        if is_company:
-            cache['company'].add(name)
-        else:
-            cache['non_company'].add(name)
-        
-        return is_company
-    except Exception as e:
-        print(f"在线搜索错误: {e}")
-        return False
+def split_names(cell_value: str) -> List[str]:
+    """拆分并清洗名称"""
+    return [n.strip() for n in str(cell_value).split("|") if n.strip()]
 
-def process_batch(batch_data: pd.DataFrame, non_personal_keywords: List[str], 
-                 translator: Translator, cache: dict) -> List[pd.Series]:
+
+def check_organization(names: List[str], cache: Dict[str, bool]) -> bool:
+    """判断多个名称中是否存在组织机构"""
+    for name in names:
+        with cache_lock:
+            if name in cache:
+                if cache[name]:
+                    return True
+                continue
+
+        api_result = call_deepseek_api(name)
+        if api_result is None:
+            continue
+
+        with cache_lock:
+            cache[name] = api_result
+
+        if api_result:
+            return True
+    return False
+
+
+def process_batch(batch: pd.DataFrame, cache: Dict[str, bool]) -> pd.DataFrame:
     """处理数据批次"""
     results = []
-    names_to_translate = []
-    
-    for _, row in batch_data.iterrows():
-        name = str(row['专利权人']) if pd.notna(row['专利权人']) else ''
-        if not name:
+    for _, row in batch.iterrows():
+        try:
+            raw_names = row['专利权人'] if pd.notna(row['专利权人']) else ''
+            names = split_names(raw_names)
+
+            if not names:
+                continue
+
+            if check_organization(names, cache):
+                results.append(row)
+        except Exception as e:
+            logging.error(f"处理行数据时出错: {str(e)}")
             continue
-            
-        if any(keyword in name for keyword in non_personal_keywords):
-            results.append(row)
-        elif is_company_name(name):
-            results.append(row)
-        else:
-            names_to_translate.append(name)
-            
-    if names_to_translate:
-        translations = batch_translate(names_to_translate, translator)
-        for name in names_to_translate:
-            translated = translations.get(name, '')
-            if translated and (any(kw in translated for kw in non_personal_keywords) or 
-                             check_company_name_online(name, cache)):
-                results.append(batch_data[batch_data['专利权人'] == name].iloc[0])
-                
-    return results
+    return pd.DataFrame(results)
+
 
 def remove_personal_applications(input_path: str = None, output_path: str = None) -> str:
-    """剔除个人专利申请数据
-    
-    Args:
-        input_path: 输入CSV文件路径，默认'../data/step1_output/patent_data_cleaned.csv'
-        output_path: 输出CSV文件路径，默认'../data/step1_output/patent_data_selected_columns.csv'
-        
-    Returns:
-        str: 处理结果报告
-    """
+    """主处理函数"""
     # 设置默认路径
     if input_path is None:
         input_path = '../data/step1_output/patent_data_cleaned.csv'
     if output_path is None:
         output_path = '../data/step1_output/patent_data_selected_columns.csv'
-    
+
     # 转换路径为Path对象
     input_path = Path(input_path)
     output_path = Path(output_path)
-    
-    # 确保输出目录存在
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # 设置缓存目录
-    cache_dir = output_path.parent / 'cache'
-    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # 初始化缓存
+    cache_path = output_path.parent / CACHE_FILENAME
+    cache = load_cache(cache_path)
+    original_cache_size = len(cache)
 
     try:
-        # 加载缓存
-        cache = load_cache(cache_dir)
-        
-        # 读取CSV数据
-        print(f"正在读取文件：{input_path}")
-        if not input_path.exists():
-            raise FileNotFoundError(f"输入文件不存在：{input_path}")
-            
-        data = pd.read_csv(input_path, encoding='utf-8')
-        original_count = len(data)
+        # 读取数据
+        logging.info(f"正在读取数据文件：{input_path}")
+        df = pd.read_csv(input_path, encoding='utf-8')
+        original_count = len(df)
 
-        # 处理参数配置
-        non_personal_keywords = [
-            '大学', '学院', '研究院', '研究所', '公司', '会社', '大队',
-            '医院', '学校', '所', '中心', '实验室', '厂', '中学',
-            '组织', '海关', '院', '部', '企业', '机构', '研究会',
-            '委员会', '种植园', '检疫局', '协会', '合作社', '小学',
-            '基金', '种植场', '支队', '工作室', '分局', '株',
-            '會社', '合伙', '学会'
-        ]
+        # 并行处理
+        batch_size = 50  # 减小批次大小
+        batches = [df[i:i + batch_size] for i in range(0, len(df), batch_size)]
+        results = []
 
-        # 初始化翻译器
-        translator = Translator()
-        
-        # 将数据分成小批次处理
-        batch_size = 100
-        batches = [data[i:i + batch_size] for i in range(0, len(data), batch_size)]
-        
-        # 使用线程池处理数据
-        remaining_data = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:  # 减少并发数
             futures = [
-                executor.submit(process_batch, batch, non_personal_keywords, translator, cache)
+                executor.submit(process_batch, batch, cache)
                 for batch in batches
             ]
-            
-            for future in tqdm(concurrent.futures.as_completed(futures), 
-                             total=len(futures), desc="处理进度"):
-                remaining_data.extend(future.result())
 
-        # 保存结果为CSV
-        result_df = pd.DataFrame(remaining_data)
-        final_count = len(result_df)
-        result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
+            for future in tqdm(
+                    concurrent.futures.as_completed(futures),
+                    total=len(futures),
+                    desc="处理进度"
+            ):
+                try:
+                    result = future.result()
+                    if not result.empty:
+                        results.append(result)
+                except Exception as e:
+                    logging.error(f"处理批次时出错: {str(e)}")
+                    continue
 
-        # 保存缓存
-        save_cache(cache, cache_dir)
+        # 合并结果
+        final_df = pd.concat(results, ignore_index=True)
+        final_count = len(final_df)
 
-        # 生成统计报告
-        report = f"数据处理完成\n原始数据量：{original_count}条\n保留数据量：{final_count}条\n删除数据量：{original_count - final_count}条"
-        print(report)
+        # 保存结果
+        final_df.to_csv(output_path, index=False, encoding='utf-8-sig')
+        logging.info(f"结果已保存至：{output_path}")
+
+        # 保存缓存（仅在变更时保存）
+        if len(cache) != original_cache_size:
+            save_cache(cache, cache_path)
+        else:
+            logging.info("无缓存变更，跳过保存")
+
+        # 生成报告
+        report = (
+            f"处理完成 | 原始数据: {original_count}条 | 保留数据: {final_count}条 | "
+            f"过滤率: {(original_count - final_count) / original_count:.1%}"
+        )
         return report
 
     except Exception as e:
-        error_msg = f"数据处理异常：{str(e)}"
-        print(error_msg)
-        return error_msg
+        logging.error(f"处理异常: {str(e)}")
+        return f"处理失败: {str(e)}"
+
 
 if __name__ == '__main__':
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='剔除个人专利申请数据')
-    parser.add_argument('input_path', help='输入CSV文件路径')
-    parser.add_argument('output_path', help='输出CSV文件路径')
-    
+    parser = argparse.ArgumentParser(description='专利数据过滤工具')
+    parser.add_argument('--input_path', '-i',
+                        default='../data/step1_output/patent_data_cleaned.csv',
+                        help='输入CSV文件路径')
+    parser.add_argument('--output_path', '-o',
+                        default='../data/step1_output/patent_data_selected_columns.csv',
+                        help='输出CSV文件路径')
+
     args = parser.parse_args()
-    remove_personal_applications(args.input_path, args.output_path)
+    result = remove_personal_applications(args.input_path, args.output_path)
+    print("\n最终报告:", result)
